@@ -1,0 +1,777 @@
+{% extends 'expedientes/base.html' %}
+{% block title %}Expediente — {{ estudiante.get_nombre_display }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.exp-wrapper { display:flex; height:calc(100vh - 58px); overflow:hidden; }
+
+/* ── PANEL IZQUIERDO ── */
+.panel-izq { width:30%; min-width:300px; background:var(--blanco); border-right:1.5px solid var(--gris-borde); display:flex; flex-direction:column; overflow-y:auto; }
+.panel-izq::-webkit-scrollbar { width:5px; }
+.panel-izq::-webkit-scrollbar-thumb { background:var(--gris-borde); border-radius:4px; }
+
+.panel-header { padding:16px 20px 12px; border-bottom:1px solid var(--gris-borde); position:sticky; top:0; background:var(--blanco); z-index:10; }
+.panel-header-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.back-link { display:flex; align-items:center; gap:5px; font-size:12px; color:var(--gris-texto); text-decoration:none; transition:color .2s; }
+.back-link:hover { color:var(--azul); }
+.nombre-titulo { font-size:14px; font-weight:700; color:#1a2340; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:160px; }
+
+.semaforo-badge { display:inline-flex; align-items:center; gap:5px; padding:3px 9px; border-radius:20px; font-size:11px; font-weight:600; }
+.semaforo-badge.verde { background:var(--verde-light); color:var(--verde); }
+.semaforo-badge.rojo  { background:var(--rojo-light);  color:var(--rojo);  }
+.sdot { width:7px; height:7px; border-radius:50%; background:currentColor; }
+
+.archivos-indicadores { display:flex; flex-wrap:wrap; gap:3px; padding:8px 20px 10px; border-bottom:1px solid var(--gris-borde); }
+.arch-ind { padding:2px 7px; border-radius:12px; font-size:11px; font-weight:500; }
+.arch-ind.ok   { background:var(--verde-light); color:var(--verde); }
+.arch-ind.miss { background:var(--rojo-light);  color:var(--rojo);  }
+
+.form-body { padding:14px 20px; flex:1; }
+.form-group { margin-bottom:13px; }
+.form-group label { display:block; font-size:11px; font-weight:700; color:#1a2340; margin-bottom:4px; text-transform:uppercase; letter-spacing:.05em; }
+.form-control { width:100%; padding:8px 11px; border:1.5px solid var(--gris-borde); border-radius:var(--radio-sm); font-size:13px; font-family:'DM Sans',sans-serif; outline:none; transition:border-color .2s,box-shadow .2s; color:#1a2340; }
+.form-control:focus { border-color:var(--azul); box-shadow:0 0 0 3px rgba(0,101,177,.10); }
+select.form-control { cursor:pointer; }
+
+.form-footer { padding:14px 20px 16px; border-top:1px solid var(--gris-borde); display:flex; gap:8px; background:var(--blanco); position:sticky; bottom:0; }
+.btn-guardar { flex:1; padding:10px; background:var(--azul); color:var(--blanco); border:none; border-radius:var(--radio-sm); font-size:13px; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; transition:background .2s,transform .1s; }
+.btn-guardar:hover { background:var(--azul-dark); }
+.btn-guardar:active { transform:scale(.98); }
+.btn-cancelar { padding:10px 14px; background:var(--gris-bg); color:#1a2340; border:1.5px solid var(--gris-borde); border-radius:var(--radio-sm); font-size:13px; font-weight:500; cursor:pointer; font-family:'DM Sans',sans-serif; text-decoration:none; display:flex; align-items:center; }
+.guard-indicator { font-size:11px; color:var(--gris-texto); display:flex; align-items:center; gap:4px; transition:color .3s; }
+.guard-indicator.guardado { color:var(--verde); }
+
+/* ── PANEL DERECHO ── */
+.panel-der { flex:1; display:flex; flex-direction:column; background:var(--gris-bg); overflow:hidden; }
+
+/* PESTAÑAS */
+.tabs-bar { display:flex; background:var(--blanco); border-bottom:2px solid var(--gris-borde); padding:0 20px; position:sticky; top:0; z-index:20; }
+.tab-btn { padding:14px 22px; font-size:13px; font-weight:600; border:none; background:transparent; cursor:pointer; font-family:'DM Sans',sans-serif; color:var(--gris-texto); border-bottom:3px solid transparent; margin-bottom:-2px; transition:color .2s,border-color .2s; display:flex; align-items:center; gap:7px; }
+.tab-btn:hover { color:var(--azul); }
+.tab-btn.active { color:var(--azul); border-bottom-color:var(--azul); }
+.tab-count { padding:1px 7px; border-radius:10px; font-size:10px; font-weight:700; }
+.tab-btn.active .tab-count { background:var(--azul); color:white; }
+.tab-btn:not(.active) .tab-count { background:var(--gris-borde); color:var(--gris-texto); }
+
+.tab-panel { display:none; flex:1; overflow-y:auto; flex-direction:column; }
+.tab-panel.active { display:flex; flex-direction:column; }
+.tab-panel::-webkit-scrollbar { width:5px; }
+.tab-panel::-webkit-scrollbar-thumb { background:var(--gris-borde); border-radius:4px; }
+
+.tab-acciones { padding:12px 18px; display:flex; align-items:center; justify-content:space-between; background:var(--blanco); border-bottom:1px solid var(--gris-borde); flex-wrap:wrap; gap:8px; }
+.tab-acciones-titulo { font-size:13px; font-weight:700; color:#1a2340; }
+.tab-acciones-btns { display:flex; gap:8px; flex-wrap:wrap; }
+.btn-atab { padding:7px 13px; border-radius:var(--radio-sm); font-size:12px; font-weight:600; cursor:pointer; border:none; font-family:'DM Sans',sans-serif; display:flex; align-items:center; gap:5px; text-decoration:none; transition:opacity .2s,transform .1s; }
+.btn-atab:hover { opacity:.85; transform:translateY(-1px); }
+.btn-azul    { background:var(--azul);  color:var(--blanco); }
+.btn-verde   { background:var(--verde); color:var(--blanco); }
+.btn-naranja { background:#f59e0b;      color:var(--blanco); }
+
+/* ACORDEÓN INDIVIDUAL */
+.docs-list { padding:14px 18px; display:flex; flex-direction:column; gap:10px; }
+
+.acord-card { background:var(--blanco); border-radius:var(--radio); box-shadow:var(--sombra); overflow:hidden; border:1.5px solid var(--gris-borde); transition:border-color .2s,box-shadow .2s; }
+.acord-card:hover { border-color:var(--azul-mid); }
+.acord-card.open  { border-color:var(--azul); box-shadow:var(--sombra-hover); }
+
+.acord-header { padding:12px 16px; display:flex; align-items:center; gap:10px; cursor:pointer; user-select:none; transition:background .15s; }
+.acord-card.open .acord-header { background:var(--azul-light); }
+.acord-header:hover { background:var(--azul-light); }
+
+.acord-icon { width:34px; height:34px; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.acord-icon.pdf { background:#fee2e2; }
+.acord-icon.img { background:#fef3c7; }
+
+.acord-label { flex:1; min-width:0; }
+.acord-label .title { font-size:13px; font-weight:700; color:#1a2340; }
+.acord-label .rename { font-size:11px; color:var(--azul); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-family:'DM Mono',monospace; }
+
+.acord-pill { padding:3px 10px; border-radius:20px; font-size:11px; font-weight:600; flex-shrink:0; }
+.acord-pill.ok   { background:var(--verde-light); color:var(--verde); }
+.acord-pill.miss { background:var(--rojo-light);  color:var(--rojo);  }
+
+.acord-chevron { transition:transform .3s; color:var(--gris-texto); flex-shrink:0; }
+.acord-card.open .acord-chevron { transform:rotate(180deg); }
+
+.acord-body { display:none; padding:14px 16px 16px; background:#f7f9fc; border-top:1.5px solid var(--azul-mid); }
+.acord-card.open .acord-body { display:block; }
+
+/* VISOR */
+.visor-container { position:relative; overflow:hidden; border-radius:var(--radio-sm); background:#1a2340; height:420px; margin-bottom:12px; }
+.visor-img { width:100%; height:100%; object-fit:contain; cursor:grab; user-select:none; transform-origin:0 0; display:block; }
+.visor-img.dragging { cursor:grabbing; }
+.pdf-scroll-area { width:100%; height:100%; overflow:auto; display:flex; flex-direction:column; align-items:center; gap:8px; padding:8px 0; cursor:grab; }
+.pdf-scroll-area.dragging { cursor:grabbing; }
+.pdf-canvas-page { display:block; box-shadow:0 2px 8px rgba(0,0,0,.4); max-width:98%; }
+
+.zoom-controls { position:absolute; bottom:10px; right:10px; display:flex; gap:5px; z-index:5; }
+.btn-zoom { width:32px; height:32px; background:rgba(0,0,0,.65); color:var(--blanco); border:none; border-radius:7px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:700; transition:background .2s; backdrop-filter:blur(4px); }
+.btn-zoom:hover { background:rgba(0,101,177,.85); }
+
+.upload-zone { border:2px dashed var(--gris-borde); border-radius:var(--radio-sm); padding:18px; text-align:center; cursor:pointer; margin-bottom:10px; transition:border-color .2s,background .2s; }
+.upload-zone:hover, .upload-zone.drag-over { border-color:var(--azul); background:var(--azul-light); }
+.upload-zone p { font-size:12px; color:var(--gris-texto); }
+.upload-zone strong { color:var(--azul); }
+.upload-input { display:none; }
+
+.drag-handle { cursor:grab; padding:0 8px 0 2px; font-size:18px; color:#9ca3af; line-height:1; flex-shrink:0; user-select:none; }
+.drag-handle:hover { color:var(--azul); }
+.drag-handle:active { cursor:grabbing; }
+.acord-card.dragging-card { opacity:.35; border:2px dashed var(--azul); background:var(--azul-light); }
+.acord-card.drag-over-top { border-top:3px solid var(--azul) !important; }
+.acord-card.drag-over-bot { border-bottom:3px solid var(--azul) !important; }
+.acord-card.drag-over-card { border-top:3px solid var(--azul); }
+.btn-icon-upload { width:28px; height:28px; border-radius:6px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; background:var(--azul-light); color:var(--azul); flex-shrink:0; transition:background .2s; }
+.btn-icon-upload:hover { background:var(--azul); color:var(--blanco); }
+.btn-icon-del { width:28px; height:28px; border-radius:6px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; background:var(--rojo-light); color:var(--rojo); flex-shrink:0; transition:background .2s; }
+.btn-icon-del:hover { background:var(--rojo); color:var(--blanco); }
+
+/* RESOLUCIONES */
+.section-sep { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--gris-texto); padding:10px 18px 6px; border-top:1px solid var(--gris-borde); margin-top:4px; }
+.resoluciones-section { padding:10px 18px 18px; }
+.resolucion-add { display:flex; gap:8px; margin-bottom:10px; }
+.resolucion-lista { display:flex; flex-direction:column; gap:6px; }
+.resolucion-item { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--blanco); border-radius:var(--radio-sm); border:1px solid var(--gris-borde); font-size:12px; }
+.resolucion-item a { flex:1; color:var(--azul); text-decoration:none; font-weight:500; }
+.resolucion-item .fecha { color:var(--gris-texto); font-size:11px; }
+.btn-del-res { background:var(--rojo-light); color:var(--rojo); border:none; border-radius:4px; cursor:pointer; padding:3px 8px; font-size:11px; font-weight:600; font-family:'DM Sans',sans-serif; }
+.res-empty { font-size:12px; color:var(--gris-texto); text-align:center; padding:14px; }
+/* Resolución como acordeón */
+.res-acord-card { background:var(--blanco); border-radius:var(--radio); box-shadow:var(--sombra); border:1.5px solid var(--gris-borde); overflow:hidden; transition:border-color .2s; }
+.res-acord-card.open { border-color:var(--azul); }
+.res-acord-header { padding:11px 14px; display:flex; align-items:center; gap:10px; cursor:pointer; user-select:none; transition:background .15s; }
+.res-acord-card.open .res-acord-header { background:var(--azul-light); }
+.res-acord-header:hover { background:var(--azul-light); }
+.res-acord-body { display:none; padding:12px 14px 14px; background:#f7f9fc; border-top:1.5px solid var(--azul-mid); }
+.res-acord-card.open .res-acord-body { display:block; }
+
+/* MODAL FECHA */
+.modal-fecha { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:2000; align-items:center; justify-content:center; }
+.modal-fecha.active { display:flex; }
+.modal-fecha-box { background:var(--blanco); border-radius:14px; padding:30px; width:350px; box-shadow:0 24px 60px rgba(0,0,0,.2); }
+.modal-fecha-box h3 { font-size:16px; margin-bottom:8px; }
+.modal-fecha-box p  { font-size:13px; color:#6b7a99; margin-bottom:14px; }
+.modal-fecha-box input[type=date] { width:100%; padding:9px 12px; border:1.5px solid var(--gris-borde); border-radius:var(--radio-sm); font-size:14px; font-family:'DM Sans',sans-serif; outline:none; margin-bottom:20px; }
+.modal-fecha-box input:focus { border-color:var(--azul); }
+.modal-fecha-btns { display:flex; gap:10px; justify-content:flex-end; }
+.btn-cancel { background:var(--gris-bg); color:#1a2340; border:none; padding:9px 16px; border-radius:var(--radio-sm); cursor:pointer; font-family:'DM Sans',sans-serif; font-size:13px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="exp-wrapper">
+
+    <!-- PANEL IZQUIERDO -->
+    <div class="panel-izq">
+        <div class="panel-header">
+            <div class="panel-header-top">
+                <a href="/" class="back-link">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+                    Volver
+                </a>
+                <span class="guard-indicator" id="guardIndicator">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
+                    Sin guardar
+                </span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                <span class="nombre-titulo" id="nombreTitulo">{{ estudiante.get_nombre_display }}</span>
+                <span class="semaforo-badge {{ estudiante.estado_semaforo }}" id="semaforoBadge">
+                    <span class="sdot"></span>
+                    <span id="semaforoTexto">{% if estudiante.estado_semaforo == 'verde' %}Completo{% else %}Pendiente{% endif %}</span>
+                </span>
+            </div>
+        </div>
+
+        <div class="archivos-indicadores" id="archivosIndicadores">
+            <span class="arch-ind {% if exp1.dni_pdf %}ok{% else %}miss{% endif %}" data-campo="dni_pdf" data-exp="exp1">DNI</span>
+            <span class="arch-ind {% if exp1.solicitud_pdf %}ok{% else %}miss{% endif %}" data-campo="solicitud_pdf" data-exp="exp1">SOL</span>
+            <span class="arch-ind {% if exp1.foto %}ok{% else %}miss{% endif %}" data-campo="foto" data-exp="exp1">FOTO</span>
+            <span class="arch-ind {% if exp1.recibo_pdf %}ok{% else %}miss{% endif %}" data-campo="recibo_pdf" data-exp="exp1">PAG</span>
+            <span class="arch-ind {% if exp1.registro_graduados_pdf %}ok{% else %}miss{% endif %}" data-campo="registro_graduados_pdf" data-exp="exp1">RSC</span>
+            <span class="arch-ind {% if exp2.certificado_notas %}ok{% else %}miss{% endif %}" data-campo="certificado_notas" data-exp="exp2">CERT</span>
+            <span class="arch-ind {% if exp2.constancia_proyeccion %}ok{% else %}miss{% endif %}" data-campo="constancia_proyeccion" data-exp="exp2">PROY</span>
+            <span class="arch-ind {% if exp2.constancia_no_adeudo %}ok{% else %}miss{% endif %}" data-campo="constancia_no_adeudo" data-exp="exp2">ADEU</span>
+        </div>
+
+        <div class="form-body">
+            <div class="form-group"><label>Apellidos y Nombres</label><input type="text" class="form-control" id="f_apellidos_nombres" value="{{ estudiante.apellidos_nombres }}" placeholder="APELLIDOS NOMBRES"></div>
+            <div class="form-group"><label>DNI</label><input type="text" class="form-control" id="f_dni" value="{{ estudiante.dni }}" placeholder="12345678" maxlength="8"></div>
+            <div class="form-group"><label>Código de Matrícula</label><input type="text" class="form-control" id="f_codigo_matricula" value="{{ estudiante.codigo_matricula }}" placeholder="Ej: 2024001"></div>
+            <div class="form-group"><label>N° Expediente</label><input type="text" class="form-control" id="f_n_expediente" value="{{ estudiante.n_expediente }}" placeholder="Ej: 001-2024"></div>
+            <div class="form-group"><label>Proveído</label><input type="text" class="form-control" id="f_proveido" value="{{ estudiante.proveido }}" placeholder="Proveído..."></div>
+            <div class="form-group">
+                <label>Escuela Profesional</label>
+                <select class="form-control" id="f_escuela">
+                    <option value="">— Seleccionar —</option>
+                    {% for val, label in escuelas %}
+                    <option value="{{ val }}" {% if estudiante.escuela == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group"><label>Celular</label><input type="text" class="form-control" id="f_celular" value="{{ estudiante.celular }}" placeholder="999 999 999"></div>
+            <div class="form-group"><label>Correo electrónico</label><input type="email" class="form-control" id="f_correo" value="{{ estudiante.correo }}" placeholder="correo@email.com"></div>
+        </div>
+
+        <div class="form-footer">
+            <button class="btn-guardar" id="btnGuardar"><span id="btnGuardarTxt">Guardar</span></button>
+            <a href="/" class="btn-cancelar">Cancelar</a>
+        </div>
+    </div>
+
+    <!-- PANEL DERECHO -->
+    <div class="panel-der">
+
+        <div class="tabs-bar">
+            <button class="tab-btn active" onclick="cambiarTab('exp1')" id="tab-btn-exp1">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+                Expediente 1
+                <span class="tab-count" id="count-exp1">{{ exp1_count }}/5</span>
+            </button>
+            <button class="tab-btn" onclick="cambiarTab('exp2')" id="tab-btn-exp2">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+                Expediente 2
+                <span class="tab-count" id="count-exp2">{{ exp2_count }}/3</span>
+            </button>
+        </div>
+
+        <!-- ══ TAB EXP 1 ══ -->
+        <div class="tab-panel active" id="tab-exp1">
+            <div class="tab-acciones">
+                <span class="tab-acciones-titulo">📁 Documentos Personales</span>
+                <div class="tab-acciones-btns">
+                    <button class="btn-atab btn-naranja" onclick="abrirModalFecha()">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+                        Informe Word
+                    </button>
+                    <a href="{% url 'descargar_exp1' estudiante.pk %}" class="btn-atab btn-azul">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        Descargar ZIP
+                    </a>
+                </div>
+            </div>
+            <div class="docs-list">
+                {% with campo="dni_pdf" titulo="DNI" tipo="pdf" archivo=exp1.dni_pdf nombre_r=nombres_exp1.dni_pdf exp="exp1" accept=".pdf" %}{% include "expedientes/_acord.html" %}{% endwith %}
+                {% with campo="solicitud_pdf" titulo="Solicitud" tipo="pdf" archivo=exp1.solicitud_pdf nombre_r=nombres_exp1.solicitud_pdf exp="exp1" accept=".pdf" %}{% include "expedientes/_acord.html" %}{% endwith %}
+                {% with campo="foto" titulo="Fotografía" tipo="img" archivo=exp1.foto nombre_r=nombres_exp1.foto exp="exp1" accept=".png,.jpg,.jpeg" %}{% include "expedientes/_acord.html" %}{% endwith %}
+                {% with campo="recibo_pdf" titulo="Recibo de Pago" tipo="pdf" archivo=exp1.recibo_pdf nombre_r=nombres_exp1.recibo_pdf exp="exp1" accept=".pdf" %}{% include "expedientes/_acord.html" %}{% endwith %}
+                {% with campo="registro_graduados_pdf" titulo="Registro de Graduados" tipo="pdf" archivo=exp1.registro_graduados_pdf nombre_r=nombres_exp1.registro_graduados_pdf exp="exp1" accept=".pdf" %}{% include "expedientes/_acord.html" %}{% endwith %}
+            </div>
+            <div class="section-sep">📎 Resoluciones adicionales</div>
+            <div class="resoluciones-section">
+                <div class="resolucion-add">
+                    <input type="text" class="form-control" id="nombreRes_exp1" placeholder="Nombre de la resolución..." style="flex:1;">
+                    <input type="file" id="inputRes_exp1" style="display:none;" onchange="subirResolucion('exp1')">
+                    <button class="btn-atab btn-azul" onclick="document.getElementById('inputRes_exp1').click()">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        Agregar
+                    </button>
+                </div>
+                <div class="resolucion-lista" id="resLista_exp1">
+                    {% for res in resoluciones %}
+                    <div class="res-acord-card" id="res_{{ res.pk }}_exp1" data-res-id="{{ res.pk }}">
+                        <div class="res-acord-header" onclick="toggleResAcord({{ res.pk }})">
+                            <div class="acord-icon pdf" style="flex-shrink:0;">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+                            </div>
+                            <div class="acord-label" style="flex:1;min-width:0;">
+                                <div class="title" style="font-size:13px;font-weight:700;">{{ res.nombre }}</div>
+                                <div class="rename" style="font-size:11px;color:var(--gris-texto);">{{ res.fecha_subida|date:"d/m/Y" }}</div>
+                            </div>
+                            <button class="btn-icon-del" title="Eliminar" onclick="event.stopPropagation(); eliminarResolucion({{ res.pk }})">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+                            </button>
+                            <svg class="acord-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                        </div>
+                        <div class="res-acord-body">
+                            <div class="visor-container" id="vc_res_{{ res.pk }}" style="margin-bottom:0;">
+                                <div class="pdf-scroll-area" data-pdf-url="{{ res.archivo.url }}"></div>
+                                <div class="zoom-controls">
+                                    <button class="btn-zoom" onclick="zoomPdf('res_{{ res.pk }}',.25)">+</button>
+                                    <button class="btn-zoom" onclick="zoomPdf('res_{{ res.pk }}',-.25)">−</button>
+                                    <button class="btn-zoom" onclick="resetZoomPdf('res_{{ res.pk }}')">↺</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}<p class="res-empty">Sin resoluciones.</p>{% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- ══ TAB EXP 2 ══ -->
+        <div class="tab-panel" id="tab-exp2">
+            <div class="tab-acciones">
+                <span class="tab-acciones-titulo">📁 Constancias Académicas</span>
+                <div class="tab-acciones-btns">
+                    <a href="{% url 'descargar_exp2' estudiante.pk %}" class="btn-atab btn-verde">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        Descargar PDF unido
+                    </a>
+                </div>
+            </div>
+            <div class="docs-list">
+                {% with campo="certificado_notas" titulo="Certificado de Notas" tipo="pdf" archivo=exp2.certificado_notas nombre_r=nombres_exp2.certificado_notas exp="exp2" accept=".pdf" %}{% include "expedientes/_acord.html" %}{% endwith %}
+                {% with campo="constancia_proyeccion" titulo="Constancia de Proyección Social" tipo="pdf" archivo=exp2.constancia_proyeccion nombre_r=nombres_exp2.constancia_proyeccion exp="exp2" accept=".pdf" %}{% include "expedientes/_acord.html" %}{% endwith %}
+                {% with campo="constancia_no_adeudo" titulo="Constancia de No Adeudo" tipo="pdf" archivo=exp2.constancia_no_adeudo nombre_r=nombres_exp2.constancia_no_adeudo exp="exp2" accept=".pdf" %}{% include "expedientes/_acord.html" %}{% endwith %}
+            </div>
+            <div class="section-sep">📎 Resoluciones adicionales</div>
+            <div class="resoluciones-section">
+                <div class="resolucion-add">
+                    <input type="text" class="form-control" id="nombreRes_exp2" placeholder="Nombre de la resolución..." style="flex:1;">
+                    <input type="file" id="inputRes_exp2" style="display:none;" onchange="subirResolucion('exp2')">
+                    <button class="btn-atab btn-azul" onclick="document.getElementById('inputRes_exp2').click()">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        Agregar
+                    </button>
+                </div>
+                <div class="resolucion-lista" id="resLista_exp2">
+                    {% for res in resoluciones %}
+                    <div class="res-acord-card" id="res_{{ res.pk }}_exp2" data-res-id="{{ res.pk }}">
+                        <div class="res-acord-header" onclick="toggleResAcord({{ res.pk }})">
+                            <div class="acord-icon pdf" style="flex-shrink:0;">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+                            </div>
+                            <div class="acord-label" style="flex:1;min-width:0;">
+                                <div class="title" style="font-size:13px;font-weight:700;">{{ res.nombre }}</div>
+                                <div class="rename" style="font-size:11px;color:var(--gris-texto);">{{ res.fecha_subida|date:"d/m/Y" }}</div>
+                            </div>
+                            <button class="btn-icon-del" title="Eliminar" onclick="event.stopPropagation(); eliminarResolucion({{ res.pk }})">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+                            </button>
+                            <svg class="acord-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                        </div>
+                        <div class="res-acord-body">
+                            <div class="visor-container" id="vc_res_{{ res.pk }}_2" style="margin-bottom:0;">
+                                <div class="pdf-scroll-area" data-pdf-url="{{ res.archivo.url }}"></div>
+                                <div class="zoom-controls">
+                                    <button class="btn-zoom" onclick="zoomPdf('res_{{ res.pk }}',.25)">+</button>
+                                    <button class="btn-zoom" onclick="zoomPdf('res_{{ res.pk }}',-.25)">−</button>
+                                    <button class="btn-zoom" onclick="resetZoomPdf('res_{{ res.pk }}')">↺</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}<p class="res-empty">Sin resoluciones.</p>{% endfor %}
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Modal fecha -->
+<div class="modal-fecha" id="modalFecha">
+    <div class="modal-fecha-box">
+        <h3>Generar Informe Word</h3>
+        <p>Seleccione la fecha del informe:</p>
+        <input type="date" id="inputFechaInforme">
+        <div class="modal-fecha-btns">
+            <button class="btn-cancel" onclick="cerrarModalFecha()">Cancelar</button>
+            <button class="btn-guardar" style="padding:9px 18px;width:auto;" onclick="descargarInforme()">Generar</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+</script>
+<script>
+const ESTUDIANTE_PK = {{ estudiante.pk }};
+const CSRF = '{{ csrf_token }}';
+
+// TIEMPO REAL — nombres de archivos
+function actualizarNombresRealtime() {
+    const dni    = document.getElementById('f_dni').value.trim();
+    const nombre = document.getElementById('f_apellidos_nombres').value.trim();
+    const codigo = document.getElementById('f_codigo_matricula').value.trim();
+
+    // Exp1 — dependen del DNI
+    const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    setEl('nombre_dni_pdf',                `R05_${dni}_DNI.pdf`);
+    setEl('nombre_solicitud_pdf',          `R04_${dni}_SOL.pdf`);
+    setEl('nombre_recibo_pdf',             `R03_${dni}_PAG.pdf`);
+    setEl('nombre_registro_graduados_pdf', `R01_${dni}_RSC.pdf`);
+
+    // Foto — depende de código + nombre
+    const fotoNombre = codigo && nombre ? `${codigo}_${nombre}.jpg`
+                     : codigo           ? `${codigo}_.jpg`
+                     : nombre           ? `${nombre}.jpg`
+                     :                    'Sin nombre.jpg';
+    setEl('nombre_foto', fotoNombre);
+
+    // Exp2 — dependen del nombre
+    setEl('nombre_certificado_notas',    `1 Certificado de Notas ${nombre}.pdf`);
+    setEl('nombre_constancia_proyeccion',`2° Constancia de Proyección Social ${nombre}.pdf`);
+    setEl('nombre_constancia_no_adeudo', `3° Constancia NO Adeudo ${nombre}.pdf`);
+}
+document.addEventListener('DOMContentLoaded', () => {
+    ['f_dni','f_apellidos_nombres','f_codigo_matricula'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', actualizarNombresRealtime);
+    });
+});
+
+// PESTAÑAS
+function cambiarTab(tab) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(`tab-${tab}`).classList.add('active');
+    document.getElementById(`tab-btn-${tab}`).classList.add('active');
+}
+
+// ACORDEÓN INDIVIDUAL
+function toggleAcord(campo) {
+    const card = document.getElementById(`acord_${campo}`);
+    const abriendo = !card.classList.contains('open');
+    card.classList.toggle('open');
+    if (abriendo) {
+        const sa = card.querySelector('.pdf-scroll-area[data-pdf-url]');
+        if (sa && sa.children.length === 0) renderPdf(campo, sa.dataset.pdfUrl);
+    }
+}
+
+// GUARDAR
+document.getElementById('btnGuardar').addEventListener('click', async () => {
+    const txt = document.getElementById('btnGuardarTxt'), btn = document.getElementById('btnGuardar');
+    txt.textContent = 'Guardando...'; btn.disabled = true;
+    const data = {
+        apellidos_nombres: document.getElementById('f_apellidos_nombres').value,
+        dni:               document.getElementById('f_dni').value,
+        codigo_matricula:  document.getElementById('f_codigo_matricula').value,
+        n_expediente:      document.getElementById('f_n_expediente').value,
+        proveido:          document.getElementById('f_proveido').value,
+        escuela:           document.getElementById('f_escuela').value,
+        celular:           document.getElementById('f_celular').value,
+        correo:            document.getElementById('f_correo').value,
+    };
+    try {
+        const res = await fetch(`/expediente/${ESTUDIANTE_PK}/guardar/`, {
+            method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':CSRF}, body:JSON.stringify(data)
+        });
+        const json = await res.json();
+        if (json.ok) {
+            document.getElementById('nombreTitulo').textContent = json.nombre_display;
+            actualizarSemaforo(json.semaforo);
+            actualizarNombres(json.nombres_exp1, json.nombres_exp2);
+            const ind = document.getElementById('guardIndicator');
+            ind.className = 'guard-indicator guardado';
+            ind.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Guardado`;
+            showToast('Datos guardados', 'verde');
+            setTimeout(() => { ind.className='guard-indicator'; ind.innerHTML=`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg> Guardado`; }, 4000);
+        }
+    } catch(e) { showToast('Error al guardar', 'rojo'); }
+    txt.textContent = 'Guardar'; btn.disabled = false;
+});
+
+function actualizarNombres(e1, e2) {
+    for (const [c, n] of Object.entries({...e1,...e2})) {
+        const el = document.getElementById(`nombre_${c}`); if (el) el.textContent = n;
+    }
+}
+function actualizarSemaforo(s) {
+    const b = document.getElementById('semaforoBadge');
+    b.className = `semaforo-badge ${s}`;
+    b.innerHTML = `<span class="sdot"></span><span>${s==='verde'?'Completo':'Pendiente'}</span>`;
+}
+function actualizarIndicadores(archivos) {
+    for (const [exp, campos] of Object.entries(archivos)) {
+        for (const [campo, tiene] of Object.entries(campos)) {
+            const ind = document.querySelector(`[data-campo="${campo}"][data-exp="${exp}"]`);
+            if (ind) ind.className = `arch-ind ${tiene?'ok':'miss'}`;
+            const pill = document.getElementById(`pill_${campo}`);
+            if (pill) { pill.className=`acord-pill ${tiene?'ok':'miss'}`; pill.textContent=tiene?'Entregado':'Pendiente'; }
+            mostrarUploadZone(campo, !tiene);
+        }
+    }
+    const c1 = Object.values(archivos.exp1).filter(Boolean).length;
+    const c2 = Object.values(archivos.exp2).filter(Boolean).length;
+    document.getElementById('count-exp1').textContent = `${c1}/5`;
+    document.getElementById('count-exp2').textContent = `${c2}/3`;
+}
+
+// SUBIR ARCHIVO
+async function subirArchivo(campo, exp, inputEl) {
+    const archivo = inputEl.files ? inputEl.files[0] : inputEl;
+    if (!archivo) return;
+    const fd = new FormData();
+    fd.append('archivo', archivo); fd.append('campo', campo); fd.append('expediente', exp);
+    showToast('Subiendo archivo...');
+    try {
+        const res = await fetch(`/expediente/${ESTUDIANTE_PK}/subir/`, {
+            method:'POST', headers:{'X-CSRFToken':CSRF}, body:fd
+        });
+        const json = await res.json();
+        if (json.ok) {
+            actualizarVisor(campo, json.url);
+            actualizarSemaforo(json.semaforo);
+            actualizarIndicadores(json.archivos);
+            showToast(`Subido: ${json.nombre}`, 'verde');
+        } else { showToast('Error: '+(json.error||''), 'rojo'); }
+    } catch(e) { showToast('Error de conexión','rojo'); }
+    if (inputEl.value !== undefined) inputEl.value = '';
+}
+
+function mostrarUploadZone(campo, visible) {
+    const zone      = document.getElementById(`uploadzone_${campo}`);
+    const uploadBtn = document.getElementById(`uploadbtn_${campo}`);
+    const delBtn    = document.getElementById(`delbtn_${campo}`);
+    if (zone)      zone.style.display      = visible ? '' : 'none';
+    if (uploadBtn) uploadBtn.style.display = visible ? '' : 'none';
+    if (delBtn)    delBtn.style.display    = visible ? 'none' : '';
+}
+
+function actualizarVisor(campo, url) {
+    const vc = document.getElementById(`vc_${campo}`);
+    if (!vc) return;
+    vc.style.display = '';
+    const esImg = /\.(png|jpg|jpeg|gif|webp)$/i.test(url);
+    if (esImg) {
+        vc.innerHTML = `<img class="visor-img" src="${url}" id="img_${campo}" draggable="false">
+            <div class="zoom-controls">
+                <button class="btn-zoom" onclick="zoomImg('${campo}',.2)">+</button>
+                <button class="btn-zoom" onclick="zoomImg('${campo}',-.2)">−</button>
+                <button class="btn-zoom" onclick="resetZoomImg('${campo}')">↺</button>
+            </div>`;
+        setupImgDrag(campo);
+    } else {
+        vc.innerHTML = `<div class="pdf-scroll-area" data-pdf-url="${url}"></div>
+            <div class="zoom-controls">
+                <button class="btn-zoom" onclick="zoomPdf('${campo}',.25)">+</button>
+                <button class="btn-zoom" onclick="zoomPdf('${campo}',-.25)">−</button>
+                <button class="btn-zoom" onclick="resetZoomPdf('${campo}')">↺</button>
+            </div>`;
+        delete pdfDocs[campo]; renderPdf(campo, url);
+    }
+    mostrarUploadZone(campo, false);
+}
+
+// BORRAR ARCHIVO
+async function borrarArchivo(campo, exp) {
+    if (!confirm('¿Eliminar este archivo?')) return;
+    try {
+        const res = await fetch(`/expediente/${ESTUDIANTE_PK}/eliminar-archivo/`, {
+            method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':CSRF},
+            body:JSON.stringify({campo, expediente:exp})
+        });
+        const json = await res.json();
+        if (json.ok) {
+            const vc = document.getElementById(`vc_${campo}`);
+            if (vc) { vc.innerHTML=''; vc.style.display='none'; }
+            // Mostrar zona de subida de nuevo, ocultar botón eliminar
+            mostrarUploadZone(campo, true);
+            actualizarSemaforo(json.semaforo);
+            actualizarIndicadores(json.archivos);
+            showToast('Archivo eliminado','rojo');
+        }
+    } catch(e) { showToast('Error al eliminar','rojo'); }
+}
+
+// DRAG & DROP
+function dragOver(e,c)  { e.preventDefault(); document.getElementById(`zone_${c}`).classList.add('drag-over'); }
+function dragLeave(e,c) { document.getElementById(`zone_${c}`).classList.remove('drag-over'); }
+function drop(e,c,exp)  { e.preventDefault(); document.getElementById(`zone_${c}`).classList.remove('drag-over'); const f=e.dataTransfer.files[0]; if(f) subirArchivo(c,exp,f); }
+
+// PDF.js
+const pdfScales={}, pdfDocs={};
+async function renderPdf(campo, url, scale) {
+    scale = scale||1.4; pdfScales[campo]=scale;
+    const sa = document.querySelector(`#vc_${campo} .pdf-scroll-area`);
+    if (!sa) return;
+    sa.innerHTML='<p style="color:#aaa;text-align:center;padding:20px;font-size:12px;">Cargando PDF...</p>';
+    try {
+        if (!pdfDocs[campo]||pdfDocs[campo]._url!==url) { pdfDocs[campo]=await pdfjsLib.getDocument(url).promise; pdfDocs[campo]._url=url; }
+        const pdf=pdfDocs[campo]; sa.innerHTML='';
+        for(let i=1;i<=pdf.numPages;i++) {
+            const page=await pdf.getPage(i), vp=page.getViewport({scale});
+            const canvas=document.createElement('canvas'); canvas.className='pdf-canvas-page';
+            canvas.width=vp.width; canvas.height=vp.height; sa.appendChild(canvas);
+            await page.render({canvasContext:canvas.getContext('2d'),viewport:vp}).promise;
+        }
+        setupPdfDrag(sa);
+    } catch(err) { sa.innerHTML=`<p style="color:#f87171;text-align:center;padding:20px;font-size:12px;">Error al cargar.<br><small>${err.message}</small></p>`; }
+}
+function zoomPdf(campo,d) { const sa=document.querySelector(`#vc_${campo} .pdf-scroll-area`); if(sa) renderPdf(campo,sa.dataset.pdfUrl||pdfDocs[campo]?._url,Math.max(.5,Math.min(4,(pdfScales[campo]||1.4)+d))); }
+function resetZoomPdf(campo) { const sa=document.querySelector(`#vc_${campo} .pdf-scroll-area`); if(sa) renderPdf(campo,sa.dataset.pdfUrl||pdfDocs[campo]?._url,1.4); }
+function setupPdfDrag(el) {
+    let down=false,sx,sy,sl,st;
+    el.onmousedown=e=>{down=true;el.classList.add('dragging');sx=e.pageX-el.offsetLeft;sy=e.pageY-el.offsetTop;sl=el.scrollLeft;st=el.scrollTop;};
+    el.onmouseleave=el.onmouseup=()=>{down=false;el.classList.remove('dragging');};
+    el.onmousemove=e=>{if(!down)return;e.preventDefault();el.scrollLeft=sl-(e.pageX-el.offsetLeft-sx);el.scrollTop=st-(e.pageY-el.offsetTop-sy);};
+}
+document.addEventListener('DOMContentLoaded',()=>{
+    document.querySelectorAll('.acord-card.open .pdf-scroll-area[data-pdf-url]').forEach(el=>{
+        const c=el.closest('.visor-container')?.id?.replace('vc_',''); if(c) renderPdf(c,el.dataset.pdfUrl);
+    });
+});
+
+// ZOOM IMAGEN
+const imgState={};
+function zoomImg(c,d) { if(!imgState[c]) imgState[c]={scale:1,x:0,y:0}; imgState[c].scale=Math.max(.3,Math.min(5,imgState[c].scale+d)); applyImg(c); }
+function resetZoomImg(c) { imgState[c]={scale:1,x:0,y:0}; applyImg(c); }
+function applyImg(c) { const img=document.getElementById(`img_${c}`); if(!img) return; const s=imgState[c]; img.style.transform=`translate(${s.x}px,${s.y}px) scale(${s.scale})`; }
+function setupImgDrag(c) {
+    setTimeout(()=>{
+        const img=document.getElementById(`img_${c}`); if(!img||img._di) return; img._di=true;
+        if(!imgState[c]) imgState[c]={scale:1,x:0,y:0};
+        let down=false,sx,sy,ox,oy;
+        img.addEventListener('mousedown',e=>{down=true;sx=e.clientX;sy=e.clientY;ox=imgState[c].x;oy=imgState[c].y;img.classList.add('dragging');e.preventDefault();});
+        window.addEventListener('mousemove',e=>{if(!down)return;imgState[c].x=ox+e.clientX-sx;imgState[c].y=oy+e.clientY-sy;applyImg(c);});
+        window.addEventListener('mouseup',()=>{down=false;if(img)img.classList.remove('dragging');});
+    },100);
+}
+document.querySelectorAll('.visor-img').forEach(img=>setupImgDrag(img.id.replace('img_','')));
+
+// ══════════════════════════════════════════
+// DRAG-TO-REORDER TARJETAS
+// ══════════════════════════════════════════
+(function() {
+    let dragged = null;
+
+    function initSortable(listEl) {
+        listEl.addEventListener('dragstart', e => {
+            const card = e.target.closest('.acord-card');
+            if (!card) return;
+            dragged = card;
+            setTimeout(() => card.classList.add('dragging-card'), 0);
+            e.dataTransfer.effectAllowed = 'move';
+        });
+        listEl.addEventListener('dragend', e => {
+            const card = e.target.closest('.acord-card');
+            if (card) card.classList.remove('dragging-card');
+            listEl.querySelectorAll('.drag-over-card').forEach(c => c.classList.remove('drag-over-card'));
+            dragged = null;
+        });
+        listEl.addEventListener('dragover', e => {
+            e.preventDefault();
+            const card = e.target.closest('.acord-card');
+            if (!card || card === dragged) return;
+            listEl.querySelectorAll('.drag-over-card').forEach(c => c.classList.remove('drag-over-card'));
+            card.classList.add('drag-over-card');
+            const rect = card.getBoundingClientRect();
+            const mid  = rect.top + rect.height / 2;
+            if (e.clientY < mid) {
+                listEl.insertBefore(dragged, card);
+            } else {
+                listEl.insertBefore(dragged, card.nextSibling);
+            }
+        });
+        listEl.addEventListener('dragleave', e => {
+            const card = e.target.closest('.acord-card');
+            if (card) card.classList.remove('drag-over-card');
+        });
+        listEl.addEventListener('drop', e => {
+            e.preventDefault();
+            listEl.querySelectorAll('.drag-over-card').forEach(c => c.classList.remove('drag-over-card'));
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.docs-list, .resolucion-lista').forEach(initSortable);
+        // Prevent drag-handle from toggling accordion
+        document.querySelectorAll('.drag-handle').forEach(h => {
+            h.addEventListener('click', e => e.stopPropagation());
+        });
+    });
+})();
+
+// ══════════════════════════════════════════
+// RESOLUCIONES
+async function subirResolucion(sufijo) {
+    const nombre=document.getElementById(`nombreRes_${sufijo}`).value.trim();
+    const archivo=document.getElementById(`inputRes_${sufijo}`).files[0];
+    if (!nombre) { showToast('Ingresa el nombre','rojo'); return; }
+    if (!archivo) return;
+    const fd=new FormData(); fd.append('nombre',nombre); fd.append('archivo',archivo);
+    try {
+        const res=await fetch(`/expediente/${ESTUDIANTE_PK}/resolucion/subir/`,{method:'POST',headers:{'X-CSRFToken':CSRF},body:fd});
+        const json=await res.json();
+        if (json.ok) {
+            const resId = `res_${json.id}`;
+            const cardHtml = buildResCard(json.id, json.nombre, json.url, json.fecha);
+            ['exp1','exp2'].forEach(s=>{
+                const lista=document.getElementById(`resLista_${s}`); if(!lista) return;
+                lista.querySelectorAll('.res-empty').forEach(p=>p.remove());
+                const wrapper = document.createElement('div');
+                wrapper.innerHTML = cardHtml;
+                const card = wrapper.firstElementChild;
+                card.id = `${resId}_${s}`;
+                lista.appendChild(card);
+            });
+            // Renderizar PDF en la primera lista visible
+            setTimeout(() => renderResolucionPdf(json.id, json.url), 100);
+            document.getElementById(`nombreRes_${sufijo}`).value='';
+            document.getElementById(`inputRes_${sufijo}`).value='';
+            showToast('Resolución agregada','verde');
+        }
+    } catch(e) { showToast('Error','rojo'); }
+}
+
+function buildResCard(id, nombre, url, fecha) {
+    return `<div class="res-acord-card" data-res-id="${id}">
+        <div class="res-acord-header" onclick="toggleResAcord(${id})">
+            <div class="acord-icon pdf" style="flex-shrink:0;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+            </div>
+            <div class="acord-label" style="flex:1;min-width:0;">
+                <div class="title" style="font-size:13px;font-weight:700;">${nombre}</div>
+                <div class="rename" style="font-size:11px;color:var(--gris-texto);">${fecha}</div>
+            </div>
+            <button class="btn-icon-del" title="Eliminar"
+                onclick="event.stopPropagation(); eliminarResolucion(${id})">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+            </button>
+            <svg class="acord-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="res-acord-body">
+            <div class="visor-container" id="vc_res_${id}" style="margin-bottom:0;">
+                <div class="pdf-scroll-area" data-pdf-url="${url}"></div>
+                <div class="zoom-controls">
+                    <button class="btn-zoom" onclick="zoomPdf('res_${id}',.25)">+</button>
+                    <button class="btn-zoom" onclick="zoomPdf('res_${id}',-.25)">−</button>
+                    <button class="btn-zoom" onclick="resetZoomPdf('res_${id}')">↺</button>
+                </div>
+            </div>
+        </div>
+    </div>`;
+}
+
+function toggleResAcord(id) {
+    const cards = document.querySelectorAll(`[data-res-id="${id}"]`);
+    cards.forEach(card => {
+        const abriendo = !card.classList.contains('open');
+        card.classList.toggle('open');
+        if (abriendo) {
+            const sa = card.querySelector('.pdf-scroll-area[data-pdf-url]');
+            if (sa && sa.children.length === 0) renderPdf(`res_${id}`, sa.dataset.pdfUrl);
+        }
+    });
+}
+
+function renderResolucionPdf(id, url) {
+    // Pre-carga silenciosa, se renderiza al abrir
+    pdfDocs[`res_${id}`] = null;
+}
+async function eliminarResolucion(pk) {
+    if(!confirm('¿Eliminar esta resolución?')) return;
+    const res=await fetch(`/resolucion/${pk}/eliminar/`,{method:'POST',headers:{'X-CSRFToken':CSRF}});
+    const json=await res.json();
+    if(json.ok) { document.querySelectorAll(`[id^="res_${pk}_"]`).forEach(el=>el.remove()); showToast('Eliminada'); }
+}
+
+// INFORME WORD
+function abrirModalFecha() { document.getElementById('inputFechaInforme').value=new Date().toISOString().split('T')[0]; document.getElementById('modalFecha').classList.add('active'); }
+function cerrarModalFecha() { document.getElementById('modalFecha').classList.remove('active'); }
+function descargarInforme() {
+    const v=document.getElementById('inputFechaInforme').value;
+    if(!v){showToast('Selecciona fecha','rojo');return;}
+    const[y,m,d]=v.split('-');
+    window.location.href=`/expediente/${ESTUDIANTE_PK}/informe-word/?fecha=${encodeURIComponent(`${d}/${m}/${y}`)}`;
+    cerrarModalFecha();
+}
+document.getElementById('modalFecha').addEventListener('click',e=>{if(e.target===e.currentTarget)cerrarModalFecha();});
+</script>
+{% endblock %}

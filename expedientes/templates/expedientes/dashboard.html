@@ -1,0 +1,381 @@
+{% extends 'expedientes/base.html' %}
+{% block title %}Dashboard — Registros Académicos{% endblock %}
+
+{% block extra_css %}
+<style>
+.page-header {
+    padding: 28px 32px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.page-header h2 {
+    font-size: 22px; font-weight: 700; color: #1a2340;
+}
+.page-header p { font-size: 13px; color: #6b7a99; margin-top: 2px; }
+
+.btn-nuevo {
+    background: var(--azul);
+    color: var(--blanco);
+    border: none;
+    padding: 11px 22px;
+    border-radius: var(--radio);
+    font-size: 14px; font-weight: 600;
+    cursor: pointer;
+    display: flex; align-items: center; gap: 8px;
+    text-decoration: none;
+    transition: background 0.2s, transform 0.1s;
+    font-family: 'DM Sans', sans-serif;
+}
+.btn-nuevo:hover { background: var(--azul-dark); transform: translateY(-1px); }
+
+.search-bar {
+    padding: 20px 32px 12px;
+}
+.search-input {
+    width: 320px;
+    padding: 10px 16px 10px 38px;
+    border: 1.5px solid var(--gris-borde);
+    border-radius: var(--radio);
+    font-size: 13px;
+    font-family: 'DM Sans', sans-serif;
+    outline: none;
+    transition: border-color 0.2s;
+    background: var(--blanco) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7a99' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E") no-repeat 12px center;
+}
+.search-input:focus { border-color: var(--azul); }
+
+.tabla-container {
+    padding: 0 32px 32px;
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--blanco);
+    border-radius: var(--radio);
+    overflow: hidden;
+    box-shadow: var(--sombra);
+}
+thead tr {
+    background: var(--azul);
+    color: var(--blanco);
+}
+thead th {
+    padding: 13px 16px;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+tbody tr {
+    border-bottom: 1px solid var(--gris-borde);
+    transition: background 0.15s;
+}
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: var(--azul-light); }
+tbody td { padding: 13px 16px; font-size: 13px; }
+
+/* SEMÁFORO */
+.semaforo {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+.semaforo.verde { background: var(--verde-light); color: var(--verde); }
+.semaforo.rojo  { background: var(--rojo-light);  color: var(--rojo);  }
+.semaforo-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+}
+.verde .semaforo-dot { background: var(--verde); }
+.rojo  .semaforo-dot { background: var(--rojo); }
+
+/* ARCHIVOS ESTADO */
+.archivos-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+.badge {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+}
+.badge.ok   { background: var(--verde-light); color: var(--verde); }
+.badge.miss { background: var(--rojo-light);  color: var(--rojo);  }
+
+/* ACCIONES */
+.btn-accion {
+    padding: 5px 12px;
+    border-radius: var(--radio-sm);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: none;
+    border: none;
+    font-family: 'DM Sans', sans-serif;
+    transition: opacity 0.2s;
+}
+.btn-accion:hover { opacity: 0.8; }
+.btn-ver  { background: var(--azul-light); color: var(--azul); }
+.btn-del  { background: var(--rojo-light); color: var(--rojo); }
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--gris-texto);
+}
+.empty-state svg { opacity: 0.3; margin-bottom: 12px; }
+.empty-state p { font-size: 14px; }
+
+.stats-row {
+    display: flex;
+    gap: 16px;
+    padding: 0 32px 20px;
+}
+.stat-card {
+    background: var(--blanco);
+    border-radius: var(--radio);
+    padding: 16px 22px;
+    box-shadow: var(--sombra);
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+.stat-icon {
+    width: 42px; height: 42px;
+    border-radius: var(--radio-sm);
+    display: flex; align-items: center; justify-content: center;
+}
+.stat-num { font-size: 24px; font-weight: 700; }
+.stat-label { font-size: 12px; color: var(--gris-texto); }
+
+/* Modal confirmación */
+.modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 1000;
+    align-items: center; justify-content: center;
+}
+.modal-overlay.active { display: flex; }
+.modal-box {
+    background: var(--blanco);
+    border-radius: 14px;
+    padding: 32px;
+    width: 380px;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.2);
+}
+.modal-box h3 { font-size: 17px; margin-bottom: 8px; }
+.modal-box p { font-size: 13px; color: var(--gris-texto); margin-bottom: 24px; }
+.modal-btns { display: flex; gap: 10px; justify-content: flex-end; }
+.btn-cancel { background: var(--gris-bg); color: #1a2340; border: none; padding: 9px 18px; border-radius: var(--radio-sm); cursor: pointer; font-family: 'DM Sans',sans-serif; font-size: 13px; }
+.btn-confirm-del { background: var(--rojo); color: var(--blanco); border: none; padding: 9px 18px; border-radius: var(--radio-sm); cursor: pointer; font-family: 'DM Sans',sans-serif; font-size: 13px; font-weight: 600; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2>Estudiantes</h2>
+        <p>Gestión de expedientes académicos</p>
+    </div>
+    <a href="{% url 'crear_estudiante' %}" class="btn-nuevo">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        Nuevo estudiante
+    </a>
+</div>
+
+{% with total=estudiantes|length %}
+{% with verdes=0 %}
+<div class="stats-row">
+    <div class="stat-card">
+        <div class="stat-icon" style="background:#e8f2fc;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0065b1" stroke-width="2">
+                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 00-3-3.87"/>
+                <path d="M16 3.13a4 4 0 010 7.75"/>
+            </svg>
+        </div>
+        <div>
+            <div class="stat-num" style="color:#0065b1;">{{ estudiantes|length }}</div>
+            <div class="stat-label">Total estudiantes</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon" style="background:var(--verde-light);">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"/>
+            </svg>
+        </div>
+        <div>
+            <div class="stat-num" style="color:#16a34a;">
+                {% for e in estudiantes %}{% if e.semaforo == 'verde' %}{% with _=1 %}{% endwith %}{% endif %}{% endfor %}
+                {{ estudiantes|length|default:0 }}
+            </div>
+            <div class="stat-label" id="stat-completos-label">Completos</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon" style="background:var(--rojo-light);">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+        </div>
+        <div>
+            <div class="stat-num" style="color:#dc2626;" id="stat-pendientes">0</div>
+            <div class="stat-label">Pendientes</div>
+        </div>
+    </div>
+</div>
+{% endwith %}{% endwith %}
+
+<div class="search-bar">
+    <input type="text" class="search-input" id="searchInput" placeholder="Buscar por nombre, DNI, escuela...">
+</div>
+
+<div class="tabla-container">
+    {% if estudiantes %}
+    <table id="tablaEstudiantes">
+        <thead>
+            <tr>
+                <th>Estado</th>
+                <th>Apellidos y Nombres</th>
+                <th>DNI</th>
+                <th>N° Expediente</th>
+                <th>Escuela</th>
+                <th>Exp. 1 (5 archivos)</th>
+                <th>Exp. 2 (3 archivos)</th>
+                <th style="text-align:center;">Total docs</th><th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for item in estudiantes %}
+        <tr data-search="{{ item.obj.apellidos_nombres|lower }} {{ item.obj.dni }} {{ item.obj.get_escuela_display|lower }}">
+            <td>
+                <span class="semaforo {{ item.semaforo }}">
+                    <span class="semaforo-dot"></span>
+                    {% if item.semaforo == 'verde' %}Completo{% else %}Pendiente{% endif %}
+                </span>
+            </td>
+            <td><strong>{{ item.obj.get_nombre_display }}</strong></td>
+            <td><code style="font-family:'DM Mono',monospace;font-size:12px;">{{ item.obj.dni|default:"—" }}</code></td>
+            <td>{{ item.obj.n_expediente|default:"—" }}</td>
+            <td>{{ item.obj.get_escuela_display|default:"—" }}</td>
+            <td>
+                <div class="archivos-badges">
+                    <span class="badge {% if item.archivos.exp1.dni_pdf %}ok{% else %}miss{% endif %}">DNI</span>
+                    <span class="badge {% if item.archivos.exp1.solicitud_pdf %}ok{% else %}miss{% endif %}">SOL</span>
+                    <span class="badge {% if item.archivos.exp1.foto %}ok{% else %}miss{% endif %}">FOTO</span>
+                    <span class="badge {% if item.archivos.exp1.recibo_pdf %}ok{% else %}miss{% endif %}">PAG</span>
+                    <span class="badge {% if item.archivos.exp1.registro_graduados_pdf %}ok{% else %}miss{% endif %}">RSC</span>
+                </div>
+            </td>
+            <td>
+                <div class="archivos-badges">
+                    <span class="badge {% if item.archivos.exp2.certificado_notas %}ok{% else %}miss{% endif %}">CERT</span>
+                    <span class="badge {% if item.archivos.exp2.constancia_proyeccion %}ok{% else %}miss{% endif %}">PROY</span>
+                    <span class="badge {% if item.archivos.exp2.constancia_no_adeudo %}ok{% else %}miss{% endif %}">ADEU</span>
+                </div>
+            </td>
+            <td style="text-align:center;">
+                <span style="font-weight:700;font-size:15px;color:var(--azul);">{{ item.total_archivos }}</span>
+                <span style="font-size:11px;color:var(--gris-texto);">/8</span>
+            </td>
+            <td>
+                <div style="display:flex;gap:6px;">
+                    <a href="{% url 'expediente' item.obj.pk %}" class="btn-accion btn-ver">Ver</a>
+                    <button class="btn-accion btn-del" onclick="confirmarEliminar({{ item.obj.pk }}, '{{ item.obj.get_nombre_display }}')">Eliminar</button>
+                </div>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div style="background:var(--blanco);border-radius:var(--radio);box-shadow:var(--sombra);">
+        <div class="empty-state">
+            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#0065b1" stroke-width="1.5">
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                <polyline points="14,2 14,8 20,8"/>
+            </svg>
+            <p>No hay estudiantes registrados aún.</p>
+            <p style="margin-top:8px;"><a href="{% url 'crear_estudiante' %}" style="color:var(--azul);font-weight:600;">Crear el primero →</a></p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Modal eliminar -->
+<div class="modal-overlay" id="modalEliminar">
+    <div class="modal-box">
+        <h3>¿Eliminar estudiante?</h3>
+        <p id="modalMensaje">Se eliminarán todos sus datos y archivos.</p>
+        <div class="modal-btns">
+            <button class="btn-cancel" onclick="cerrarModal()">Cancelar</button>
+            <button class="btn-confirm-del" id="btnConfirmarDel">Sí, eliminar</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Búsqueda
+document.getElementById('searchInput').addEventListener('input', function() {
+    const q = this.value.toLowerCase();
+    document.querySelectorAll('#tablaEstudiantes tbody tr').forEach(row => {
+        const txt = row.dataset.search || '';
+        row.style.display = txt.includes(q) ? '' : 'none';
+    });
+});
+
+// Stats pendientes
+let pendientes = 0;
+document.querySelectorAll('.semaforo.rojo').forEach(() => pendientes++);
+document.getElementById('stat-pendientes').textContent = pendientes;
+
+// Modal eliminar
+let pkEliminar = null;
+function confirmarEliminar(pk, nombre) {
+    pkEliminar = pk;
+    document.getElementById('modalMensaje').textContent = `¿Eliminar a "${nombre}"? Se perderán todos sus datos y archivos.`;
+    document.getElementById('modalEliminar').classList.add('active');
+}
+function cerrarModal() {
+    document.getElementById('modalEliminar').classList.remove('active');
+    pkEliminar = null;
+}
+document.getElementById('btnConfirmarDel').addEventListener('click', async () => {
+    if (!pkEliminar) return;
+    const res = await fetch(`/eliminar/${pkEliminar}/`, {
+        method: 'POST',
+        headers: {'X-CSRFToken': '{{ csrf_token }}'}
+    });
+    const data = await res.json();
+    if (data.ok) {
+        location.reload();
+    } else {
+        showToast('Error al eliminar', 'rojo');
+        cerrarModal();
+    }
+});
+document.getElementById('modalEliminar').addEventListener('click', e => {
+    if (e.target === e.currentTarget) cerrarModal();
+});
+</script>
+{% endblock %}
