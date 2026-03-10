@@ -141,7 +141,7 @@ def guardar_estudiante(request, pk):
     data = json.loads(request.body)
 
     campos = ['apellidos_nombres', 'dni', 'n_expediente', 'proveido',
-              'escuela', 'celular', 'correo', 'codigo_matricula']
+              'escuela', 'celular', 'correo', 'codigo_matricula', 'n_informe']
     for campo in campos:
         if campo in data:
             setattr(estudiante, campo, data[campo])
@@ -344,9 +344,15 @@ def descargar_expediente2_unido(request, pk):
 @login_required
 def generar_informe_word(request, pk):
     estudiante = get_object_or_404(Estudiante, pk=pk)
-    fecha_str = request.GET.get('fecha', datetime.now().strftime('%d/%m/%Y'))
+    fecha_str = request.GET.get('fecha', '')
+    numero_informe = request.GET.get('numero_informe', '')
+
+    # Guardar n_informe en BD si se proporcionó
+    if numero_informe:
+        estudiante.n_informe = numero_informe
+        estudiante.save(update_fields=['n_informe'])
     dni = estudiante.dni or 'SIN_DNI'
-    n_exp = estudiante.n_expediente or 'XXX'
+    n_exp = estudiante.n_expediente or ''
     nombre_archivo = f'INFORME_{n_exp}_{dni}.docx'
 
     try:
@@ -372,6 +378,8 @@ def generar_informe_word(request, pk):
                 '{{ESCUELA}}': dict(ESCUELAS).get(estudiante.escuela, ''),
                 '{{CELULAR}}': estudiante.celular or '',
                 '{{CORREO}}': estudiante.correo or '',
+                '{{INFORME}}': numero_informe,
+                '{{CODIGO_MATRICULA}}': estudiante.codigo_matricula or '',
             }
             for para in doc.paragraphs:
                 for var, val in reemplazos.items():
@@ -418,7 +426,7 @@ def generar_informe_word(request, pk):
             doc.add_paragraph()
 
             # Datos del expediente en tabla
-            tabla = doc.add_table(rows=8, cols=2)
+            tabla = doc.add_table(rows=10, cols=2)
             tabla.style = 'Table Grid'
 
             datos = [
@@ -429,6 +437,8 @@ def generar_informe_word(request, pk):
                 ('Escuela Profesional:', dict(ESCUELAS).get(estudiante.escuela, '')),
                 ('Celular:', estudiante.celular or ''),
                 ('Correo Electrónico:', estudiante.correo or ''),
+                ('Código de Matrícula:', estudiante.codigo_matricula or ''),
+                ('N° de Informe:', numero_informe),
                 ('Fecha de Registro:', fecha_str),
             ]
 

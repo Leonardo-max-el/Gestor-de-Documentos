@@ -6,7 +6,7 @@
 .exp-wrapper { display:flex; height:calc(100vh - 58px); overflow:hidden; }
 
 /* ── PANEL IZQUIERDO ── */
-.panel-izq { width:30%; min-width:300px; background:var(--blanco); border-right:1.5px solid var(--gris-borde); display:flex; flex-direction:column; overflow-y:auto; }
+.panel-izq { width:20%; min-width:300px; background:var(--blanco); border-right:1.5px solid var(--gris-borde); display:flex; flex-direction:column; overflow-y:auto; }
 .panel-izq::-webkit-scrollbar { width:5px; }
 .panel-izq::-webkit-scrollbar-thumb { background:var(--gris-borde); border-radius:4px; }
 
@@ -364,8 +364,14 @@ select.form-control { cursor:pointer; }
 <div class="modal-fecha" id="modalFecha">
     <div class="modal-fecha-box">
         <h3>Generar Informe Word</h3>
-        <p>Seleccione la fecha del informe:</p>
-        <input type="date" id="inputFechaInforme">
+        <div class="form-group" style="margin-bottom:14px;">
+            <label style="display:block;font-size:11px;font-weight:700;color:#1a2340;margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em;">Fecha del informe</label>
+            <input type="date" id="inputFechaInforme" class="form-control">
+        </div>
+        <div class="form-group" style="margin-bottom:20px;">
+            <label style="display:block;font-size:11px;font-weight:700;color:#1a2340;margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em;">N° de Informe</label>
+            <input type="text" id="inputNumeroInforme" class="form-control" placeholder="Ej: 001-2026-RA">
+        </div>
         <div class="modal-fecha-btns">
             <button class="btn-cancel" onclick="cerrarModalFecha()">Cancelar</button>
             <button class="btn-guardar" style="padding:9px 18px;width:auto;" onclick="descargarInforme()">Generar</button>
@@ -766,10 +772,18 @@ async function eliminarResolucion(pk) {
 function abrirModalFecha() { document.getElementById('inputFechaInforme').value=new Date().toISOString().split('T')[0]; document.getElementById('modalFecha').classList.add('active'); }
 function cerrarModalFecha() { document.getElementById('modalFecha').classList.remove('active'); }
 function descargarInforme() {
-    const v=document.getElementById('inputFechaInforme').value;
-    if(!v){showToast('Selecciona fecha','rojo');return;}
-    const[y,m,d]=v.split('-');
-    window.location.href=`/expediente/${ESTUDIANTE_PK}/informe-word/?fecha=${encodeURIComponent(`${d}/${m}/${y}`)}`;
+    const v        = document.getElementById('inputFechaInforme').value;
+    const nInforme = document.getElementById('inputNumeroInforme').value.trim();
+    if (!v)        { showToast('Selecciona una fecha', 'rojo'); return; }
+    if (!nInforme) { showToast('Ingresa el N° de Informe', 'rojo'); return; }
+
+    const meses = ['enero','febrero','marzo','abril','mayo','junio',
+                   'julio','agosto','septiembre','octubre','noviembre','diciembre'];
+    const [y, m, d] = v.split('-');
+    const fechaFormateada = `Huancayo, ${parseInt(d)} de ${meses[parseInt(m)-1]} de ${y}`;
+
+    const url = `/expediente/${ESTUDIANTE_PK}/informe-word/?fecha=${encodeURIComponent(fechaFormateada)}&numero_informe=${encodeURIComponent(nInforme)}`;
+    window.location.href = url;
     cerrarModalFecha();
 }
 document.getElementById('modalFecha').addEventListener('click',e=>{if(e.target===e.currentTarget)cerrarModalFecha();});

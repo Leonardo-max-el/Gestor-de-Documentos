@@ -53,6 +53,7 @@ class Estudiante(models.Model):
     celular = models.CharField(max_length=15, blank=True, default='')
     correo = models.EmailField(blank=True, default='')
     codigo_matricula = models.CharField(max_length=20, blank=True, default='')
+    n_informe = models.CharField(max_length=50, blank=True, default='')
 
     # Control
     creado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
